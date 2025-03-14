@@ -115,13 +115,16 @@ jobs:
           # This will download and set up the Opus library
           echo "Using Emscripten's Opus port"
           
-          # For libvpx, download a pre-built WebAssembly version
+          # For libvpx, download the archive directly
           echo "Downloading pre-built libvpx for WebAssembly"
-          git clone --depth 1 https://github.com/webmproject/libvpx.js.git
-          cd libvpx.js
-          # Build or extract the pre-built library
+          curl -L -o libvpx.js.zip https://github.com/webmproject/libvpx.js/archive/refs/heads/main.zip
+          unzip libvpx.js.zip
+          cd libvpx.js-main
+          
+          # Install Node.js dependencies and build
           npm install
           npm run build
+          
           # Copy the built files to our vendor directory
           cp -r dist/* /tmp/wasm-vendor/
           cd ..

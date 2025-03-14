@@ -103,16 +103,41 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.12
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.58'
+      - name: Prepare WebAssembly dependencies
+        run: |
+          mkdir -p /tmp/wasm-vendor/{include,lib}
+          
+          # Use Emscripten's Opus port
+          # This will download and set up the Opus library
+          echo "Using Emscripten's Opus port"
+          
+          # For libvpx, download the archive directly
+          echo "Downloading pre-built libvpx for WebAssembly"
+          curl -L -o libvpx.js.zip https://github.com/webmproject/libvpx.js/archive/refs/heads/main.zip
+          unzip libvpx.js.zip
+          cd libvpx.js-main
+          
+          # Install Node.js dependencies and build
+          npm install
+          npm run build
+          
+          # Copy the built files to our vendor directory
+          cp -r dist/* /tmp/wasm-vendor/
+          cd ..
       - name: Build wheels for Pyodide
         env:
           CIBW_PLATFORM: pyodide
-          CIBW_BEFORE_BUILD: python scripts/fetch-vendor.py /tmp/vendor
-          CIBW_ENVIRONMENT: CFLAGS=-I/tmp/vendor/include LDFLAGS=-L/tmp/vendor/lib
-          CIBW_TEST_SKIP: "*"  # Skip tests for Pyodide builds
+          CIBW_ENVIRONMENT: >-
+            CFLAGS="-I/tmp/wasm-vendor/include -s USE_OPUS=1" 
+            LDFLAGS="-L/tmp/wasm-vendor/lib -s USE_OPUS=1"
+          CIBW_TEST_SKIP: "*"
         run: |
           pip install cibuildwheel>=2.19.0
           cibuildwheel --output-dir dist
-        shell: bash
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:

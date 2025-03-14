@@ -107,30 +107,30 @@ jobs:
         uses: mymindstorm/setup-emsdk@v14
         with:
           version: '3.1.58'
-      - name: Build WebAssembly dependencies
+      - name: Prepare WebAssembly dependencies
         run: |
           mkdir -p /tmp/wasm-vendor/{include,lib}
           
-          # Build Opus
-          git clone --depth 1 --branch v1.3.1 https://github.com/xiph/opus.git
-          cd opus
-          ./autogen.sh
-          emconfigure ./configure --prefix=/tmp/wasm-vendor --disable-shared --enable-static
-          emmake make -j4
-          emmake make install
-          cd ..
+          # Use Emscripten's Opus port
+          # This will download and set up the Opus library
+          echo "Using Emscripten's Opus port"
           
-          # Build libvpx (if needed)
-          git clone --depth 1 --branch v1.13.1 https://chromium.googlesource.com/webm/libvpx.git
-          cd libvpx
-          emconfigure ./configure --prefix=/tmp/wasm-vendor --disable-examples --disable-tools --disable-docs --disable-unit-tests --enable-static --disable-shared
-          emmake make -j4
-          emmake make install
+          # For libvpx, download a pre-built WebAssembly version
+          echo "Downloading pre-built libvpx for WebAssembly"
+          git clone --depth 1 https://github.com/webmproject/libvpx.js.git
+          cd libvpx.js
+          # Build or extract the pre-built library
+          npm install
+          npm run build
+          # Copy the built files to our vendor directory
+          cp -r dist/* /tmp/wasm-vendor/
           cd ..
       - name: Build wheels for Pyodide
         env:
           CIBW_PLATFORM: pyodide
-          CIBW_ENVIRONMENT: CFLAGS="-I/tmp/wasm-vendor/include" LDFLAGS="-L/tmp/wasm-vendor/lib"
+          CIBW_ENVIRONMENT: >-
+            CFLAGS="-I/tmp/wasm-vendor/include -s USE_OPUS=1" 
+            LDFLAGS="-L/tmp/wasm-vendor/lib -s USE_OPUS=1"
           CIBW_TEST_SKIP: "*"
         run: |
           pip install cibuildwheel>=2.19.0
